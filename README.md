@@ -3,7 +3,6 @@
 An end-to-end deep learning pipeline that determines a person's ABO + Rh blood group from a photograph of a standard disposable blood-typing card, using COCO bounding-box annotation, OpenCV region extraction, and MobileNetV2 transfer learning.
 
 ---
-
 ## Pipeline Overview
 
 ```
