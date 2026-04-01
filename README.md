@@ -29,8 +29,8 @@ AI_Blood_Group_detection/
 ├── IEEE_Paper.md                   # Full IEEE-format research paper (Task 6)
 ├── blood_model.keras               # Trained model (Keras native format)
 ├── blood_model.h5                  # Trained model (HDF5 legacy format)
-├── train_data/                     # Sample training images (~44 images)
-└── test_data/                      # Sample test images (~54 images)
+├── train_data/                     # Training images (6,456 images)
+└── test_data/                      # Test images (383 images)
 ```
 
 ---
@@ -90,7 +90,7 @@ Outputs:
 | Input size | 224 × 224 × 3 |
 | Classes | 3 (Strong Clumping, Medium Clumping, No Clumping) |
 | Trainable params | ~166 K |
-| Validation accuracy | ~94–95% |
+| Validation accuracy | ~94–95% (on 997-image validation set) |
 
 ---
 
@@ -119,7 +119,7 @@ A full IEEE-format research paper covering methodology, results, discussion, and
 
 - Images of standard disposable blood-typing cards annotated with COCO bounding boxes using Roboflow
 - Each image contains three bounding boxes: Anti-A zone (`category_id=1`), Anti-B zone (`category_id=2`), Anti-D zone (`category_id=3`)
-- Training set: ~44 images; Test set: ~54 images
+- Training set: 6,456 images; Validation set: 997 images; Test set: 383 images (total: 7,836 images)
 - Blood groups represented: A, B, AB, O
 
 ---
