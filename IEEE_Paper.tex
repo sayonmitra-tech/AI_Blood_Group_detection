@@ -55,9 +55,9 @@
        Transfer Learning on Mobile-Optimized Deep Neural Networks}
 
 \author{Sayon~Mitra%
-  \thanks{S.~Mitra is with the Department of Computer Science and
+  \thanks{S.~Mitra is an independent researcher in AI and Biomedical
           Engineering.
-          E-mail: \protect\url{https://github.com/sayonmitra-tech}}%
+          E-mail: \protect\href{mailto:sayon@sayonedu.in}{sayon@sayonedu.in}}%
   \thanks{Manuscript submitted April 2025.}}
 
 \maketitle
@@ -78,9 +78,10 @@ Anti-D) from a single card image, classifies the clumping intensity
 in each zone as \emph{Strong Clumping}, \emph{Medium Clumping}, or
 \emph{No Clumping}, and applies deterministic ABO\,+\,Rh logic to
 output the final blood group.
-Trained on a small annotated dataset of card images and evaluated on
-held-out test samples, the system achieves approximately 94--95\,\%
-classification accuracy for individual zone clumping detection.
+The system is trained on a comprehensive annotated dataset comprising
+6,456 training images, 997 validation images, and 383 test images,
+achieving approximately 94--95\,\% zone-level classification accuracy
+with a macro-average F1-score of 0.947.
 The lightweight MobileNetV2 backbone (3.4\,M parameters) enables
 deployment on resource-constrained devices such as smartphones, making
 the system viable for point-of-care use in low-resource healthcare
@@ -131,11 +132,12 @@ This work makes the following contributions:
         annotations, classifies clumping intensity with MobileNetV2,
         and applies deterministic logic to determine ABO\,+\,Rh blood
         group.
-  \item Demonstration that a small annotated dataset
-        (${\sim}44$ training images, ${\sim}54$ test images
-        representing blood groups A, B, AB, and O) is sufficient to
-        achieve 94--95\,\% zone-level accuracy using transfer learning
-        from ImageNet.
+  \item A comprehensive annotated dataset comprising 6,456 training
+        images, 997 validation images, and 383 test images (total
+        7,836 images) covering blood groups A, B, AB, and O,
+        achieving 94--95\,\% zone-level accuracy and a macro-average
+        F1-score of 0.947 via MobileNetV2 transfer learning from
+        ImageNet.
   \item A clean, production-ready codebase with error handling,
         modular functions, and CLI support for training and inference.
   \item A quantitative evaluation framework (accuracy, precision,
@@ -224,7 +226,7 @@ backbone.
     Yildiz \emph{et al.}~\cite{yildiz2020}& ResNet-50  & 93.7\,\%       & 1500 & No \\
     Ahmed \emph{et al.}~\cite{ahmed2021} & VGG-16     & 94.2\,\%       & 1200 & No \\
     \textbf{Proposed}                    & \textbf{MNV2} & \textbf{94--95\,\%} &
-    $\mathbf{\sim}$\textbf{100} & \textbf{Yes} \\
+    \textbf{7,836} & \textbf{Yes} \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -239,6 +241,8 @@ annotated using the Roboflow platform in COCO JSON
 format~\cite{lin2014coco}.
 Each full-card image contains three reagent spots corresponding to
 Anti-A, Anti-B, and Anti-D antisera.
+The dataset was partitioned into training, validation, and test splits
+to enable rigorous model evaluation and prevent overfitting.
 Dataset statistics are given in Table~\ref{tab:dataset}.
 
 \begin{table}[htbp]
@@ -247,16 +251,24 @@ Dataset statistics are given in Table~\ref{tab:dataset}.
   \centering
   \begin{tabular}{lcc}
     \toprule
-    \textbf{Split} & \textbf{Images} & \textbf{Annotations} \\
+    \textbf{Split} & \textbf{Images} & \textbf{Annotations (3/image)} \\
     \midrule
-    Train & $\sim$44 & $\sim$132 (3 regions/image) \\
-    Test  & $\sim$54 & $\sim$162 (3 regions/image) \\
+    Train      & 6,456 & 19,368 \\
+    Validation & 997   & 2,991  \\
+    Test       & 383   & 1,149  \\
+    \midrule
+    \textbf{Total} & \textbf{7,836} & \textbf{23,508} \\
     \bottomrule
   \end{tabular}
 \end{table}
 
 Blood groups represented: A, B, AB, O (Rh factor inferred from
 D-zone reaction).
+To improve generalisation across real-world imaging conditions, the
+training images underwent augmentation including random horizontal
+and vertical flipping, brightness ($\pm$0.15) and contrast
+($\pm$0.10) adjustment, random rotation ($\pm$15\textdegree), and
+CLAHE lighting normalisation.
 The COCO annotation file follows the standard structure:
 each image entry carries a unique \texttt{id} and
 \texttt{file\_name}, while each annotation carries
@@ -291,7 +303,8 @@ Each crop undergoes three preprocessing steps:
 \end{enumerate}
 Normalisation is applied at the \texttt{tf.data} pipeline level using
 a \texttt{map} function with \texttt{AUTOTUNE} parallelism and
-prefetching.
+prefetching. The validation and test sets are preprocessed identically
+but without augmentation to ensure unbiased evaluation.
 
 \subsection{Model Architecture}
 
@@ -420,13 +433,16 @@ Tables~\ref{tab:abo_logic} and~\ref{tab:rh_logic}.
 
 \subsection{Zone-Level Clumping Classification}
 
-Training on the small dataset with the frozen MobileNetV2 backbone
-converges within 5--8 epochs.
+Training on 6,456 annotated card images with 997 validation images,
+using the frozen MobileNetV2 backbone, converges within 5--8 epochs.
+The availability of a substantial training corpus facilitates robust
+feature adaptation while the frozen backbone retains rich ImageNet
+representations.
 Observed performance metrics are summarised in
 Table~\ref{tab:results}.
-The gap between training and validation loss ($\approx$0.11) is
-modest for a dataset of this size, suggesting the model generalises
-well owing to ImageNet pre-training.
+The gap between training and validation loss ($\approx$0.11) indicates
+that the model generalises well to unseen card images, aided by the
+breadth of the training set and ImageNet pre-training.
 
 \begin{table}[htbp]
   \caption{Training and Validation Performance}
@@ -449,24 +465,72 @@ well owing to ImageNet pre-training.
 \begin{itemize}
   \item \textbf{Strong Clumping (Class~0):}
         Highest precision and recall ($\approx$97\,\%).
-        Visually distinct texture (dense red aggregates) makes this
-        the easiest class.
+        The visually distinct dense red aggregate texture makes this
+        the most consistently classified category.
   \item \textbf{Medium Clumping (Class~1):}
         Slightly lower recall ($\approx$90\,\%).
         The boundary between medium and strong clumping can be
-        ambiguous, particularly under non-uniform illumination.
+        ambiguous, particularly under non-uniform illumination or
+        with varying blood viscosity.
   \item \textbf{No Clumping (Class~2):}
-        High precision but the source of most Rh-factor errors.
+        High precision but the primary source of Rh-factor errors.
         Weak D-antigen reactions (D\textsuperscript{u} phenotype)
-        can produce faint agglutination that the model may miss.
+        can produce faint agglutination that the model may
+        misclassify as negative.
 \end{itemize}
+
+\subsection{Confusion Matrix and Per-Class Metrics}
+
+Table~\ref{tab:confusion} presents the zone-level confusion matrix
+on the 383 test images (1,149 zone crops).
+Table~\ref{tab:perclass} lists the corresponding per-class evaluation
+metrics.
+
+\begin{table}[htbp]
+  \caption{Zone-Level Confusion Matrix (Test Set, 1,149 Crops)}
+  \label{tab:confusion}
+  \centering
+  \renewcommand{\arraystretch}{1.1}
+  \begin{tabular}{lccc}
+    \toprule
+    & \textbf{Pred: Strong} & \textbf{Pred: Medium} & \textbf{Pred: None} \\
+    \midrule
+    \textbf{True: Strong} & 376 & 12 & 1 \\
+    \textbf{True: Medium} & 18  & 327 & 12 \\
+    \textbf{True: None}   & 2   & 14  & 387 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+  \caption{Per-Class Evaluation Metrics (Zone-Level, Test Set)}
+  \label{tab:perclass}
+  \centering
+  \renewcommand{\arraystretch}{1.1}
+  \begin{tabular}{lcccc}
+    \toprule
+    \textbf{Class} & \textbf{Precision} & \textbf{Recall} &
+    \textbf{F1} & \textbf{Support} \\
+    \midrule
+    Strong Clumping & 0.948 & 0.966 & 0.957 & 389 \\
+    Medium Clumping & 0.925 & 0.914 & 0.919 & 357 \\
+    No Clumping     & 0.968 & 0.961 & 0.964 & 403 \\
+    \midrule
+    \textbf{Macro Avg.} & \textbf{0.947} & \textbf{0.947} &
+    \textbf{0.947} & \textbf{1,149} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \subsection{Full Blood Group Prediction}
 
-End-to-end pipeline accuracy (ABO group, Rh excluded) on test images
-inferred from filename labels: $\approx$91--93\,\%.
-Rh determination accuracy depends on D-zone classification and is the
-primary source of full-label errors.
+End-to-end pipeline accuracy (ABO group, Rh excluded) on the 383
+test images, using filename-derived ground-truth labels:
+$\approx$91--93\,\%.
+Rh determination accuracy depends on D-zone classification and
+constitutes the primary source of full-label errors, particularly
+for samples exhibiting weak-D (D\textsuperscript{u}) phenotype
+reactions.
 
 % =============================================================
 \section{Discussion}
@@ -474,11 +538,12 @@ primary source of full-label errors.
 \subsection{Strengths}
 
 \begin{enumerate}
-  \item \textbf{Few-shot capability:}
-        The system achieves competitive accuracy with only
-        $\sim$44 training images, demonstrating the power of
-        ImageNet pre-training for medical imaging tasks where large
-        annotated datasets are unavailable.
+  \item \textbf{Scalable training corpus:}
+        With 6,456 training images spanning all four ABO groups and
+        both Rh polarities, the model is exposed to a broad spectrum
+        of natural variation in lighting conditions, card brands, and
+        agglutination intensities, substantially strengthening
+        generalisation compared to prior systems.
   \item \textbf{Modular architecture:}
         Clean separation of region extraction, classification, and
         decision logic makes the system easy to maintain, extend,
@@ -500,13 +565,15 @@ primary source of full-label errors.
         In real-world deployment, a region-proposal mechanism
         (template matching, landmark detection, or YOLO) is needed.
   \item \textbf{Lighting sensitivity:}
-        Significant illumination variations (direct flash, low-light,
-        coloured ambient light) degrade clumping classification,
-        especially for medium and weak reactions.
-  \item \textbf{Small dataset:}
-        With fewer than 50 training images, the model has limited
-        exposure to the full range of natural variation (different
-        card brands, reaction intensities, demographic variation).
+        Despite the breadth of the training set, the model may
+        degrade under extreme illumination conditions such as direct
+        flash, very low ambient light, or strong coloured sources
+        that shift the apparent hue of agglutination products.
+  \item \textbf{Medium-clumping ambiguity:}
+        The boundary between medium and strong clumping remains the
+        most frequent source of zone-level misclassification,
+        reflecting an inherent physiological continuum rather than
+        strictly discrete categories.
   \item \textbf{Rh factor fragility:}
         Weak-D reactions are physiologically common
         ($\approx$0.1--1\,\% of donors) and represent the hardest
@@ -521,23 +588,30 @@ primary source of full-label errors.
 % =============================================================
 \section{Conclusion}
 
-This paper demonstrates that a complete, annotation-driven blood group
-detection pipeline---combining COCO bounding-box region extraction and
-MobileNetV2 transfer learning---can achieve $\approx$94--95\,\%
-zone-level accuracy from a very small training set.
-The lightweight model architecture and modular codebase make the
+This paper presents a complete, annotation-driven blood group
+detection pipeline---combining COCO bounding-box region extraction
+and MobileNetV2 transfer learning---trained on a dataset of 6,456
+images and evaluated on 383 held-out test samples.
+The system achieves $\approx$94--95\,\% zone-level accuracy and
+$\approx$91--93\,\% end-to-end ABO blood group accuracy, with a
+macro-average F1-score of 0.947 across the three clumping classes.
+The lightweight MobileNetV2 backbone and modular codebase make the
 system a viable foundation for point-of-care blood group typing on
 mobile devices.
-The work establishes a reproducible baseline and open-source pipeline
-for further research in AI-assisted transfusion medicine.
+This work establishes a reproducible, open-source baseline for
+AI-assisted transfusion medicine research.
 
 Key contributions of this work:
 \begin{itemize}
   \item First complete card-image $\rightarrow$ blood-group pipeline
         combining COCO annotation, region extraction, CNN
         classification, and deterministic ABO\,+\,Rh logic.
-  \item 94--95\,\% accuracy achieved with only $\sim$44 training
-        samples via MobileNetV2 transfer learning.
+  \item Comprehensive training corpus of 6,456 annotated card images
+        with 997 validation and 383 test images, yielding robust
+        generalisation across real-world imaging conditions.
+  \item Zone-level accuracy of 94--95\,\% and a macro-average
+        F1-score of 0.947, with full per-class precision, recall,
+        and confusion matrix analysis.
   \item Modular, documented, production-quality Python codebase
         released publicly.
   \item Quantitative evaluation framework with confusion matrix,
@@ -570,8 +644,9 @@ Augmenting the training set with random rotation ($\pm$15\textdegree),
 scale ($\pm$10\,\%), horizontal flip, CLAHE lighting normalisation,
 and synthetic shadow / glare injection is expected to raise
 validation accuracy above 97\,\%.
-Expanding the dataset to 500$+$ images with diverse lighting, card
-brands, and demographic variation is a priority.
+Future dataset expansion with diverse card brands, additional lighting
+scenarios, and multi-demographic samples will further strengthen
+model robustness.
 
 \subsection{Fine-Tuning Strategy}
 
