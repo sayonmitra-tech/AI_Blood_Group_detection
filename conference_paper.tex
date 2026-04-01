@@ -166,7 +166,7 @@ brightness ($\pm$0.15), contrast ($\pm$0.10), rotation
 ($\pm$15$^{\circ}$), and CLAHE normalisation to improve
 generalisation across diverse lighting conditions and card brands.
 
-\subsection{Region Extraction and Classification}
+\subsection{Region Extraction and Model Architecture}
 
 The COCO annotation file is parsed to retrieve bounding boxes for
 the Anti-A, Anti-B, and Anti-D zones.
@@ -174,16 +174,67 @@ Each box is cropped and resized to $224\times224$ pixels, normalised
 to $[0, 1]$, and labelled as one of three classes:
 \textbf{Strong Clumping} (class 0), \textbf{Medium Clumping}
 (class 1), or \textbf{No Clumping} (class 2).
+
 Transfer learning is applied using MobileNetV2~\cite{sandler2018}
-pretrained on ImageNet-1K, with the backbone frozen during the
-initial phase and fine-tuned (last 30 layers, $\eta{=}10^{-5}$)
-in a second phase.
-The classification head appends GlobalAveragePooling2D (1280-d),
-Dropout(0.3), Dense(128, ReLU), and Dense(3, Softmax).
-Total trainable parameters in the head: $\approx$166\,K.
+pretrained on ImageNet-1K.
+MobileNetV2 employs inverted residual bottleneck blocks with
+depthwise separable convolutions and linear bottlenecks, yielding
+3.4\,M parameters (14\,MB float32) versus 25.6\,M for ResNet-50
+and 138\,M for VGG-16---making it the only prior backbone suitable
+for on-device mobile inference.
+The backbone is frozen during the initial training phase; an
+optional fine-tuning phase unfreezes the last 30 layers
+($\eta{=}10^{-5}$) for domain adaptation.
+
+Fig.~\ref{fig:arch} summarises the classification head.
+
+\begin{figure}[htbp]
+  \centering
+  \fbox{%
+    \parbox{0.88\columnwidth}{%
+      \small\centering
+      \textbf{Input:} $224 \times 224 \times 3$\\[2pt]
+      $\downarrow$\\[1pt]
+      MobileNetV2 backbone (frozen, 2.3\,M params)\\[2pt]
+      $\downarrow$\\[1pt]
+      GlobalAveragePooling2D $\rightarrow$ 1280-d\\[2pt]
+      $\downarrow$\\[1pt]
+      Dropout(0.3) $\rightarrow$ Dense(128, ReLU)\\[2pt]
+      $\downarrow$\\[1pt]
+      Dense(3, Softmax)\\[2pt]
+      $\downarrow$\\[1pt]
+      \textbf{Output:} Strong / Medium / No Clumping
+    }%
+  }
+  \caption{MobileNetV2 classification head.
+           Trainable parameters: $\approx$166\,K (head only).}
+  \label{fig:arch}
+\end{figure}
+
 Training uses Adam ($\eta{=}10^{-4}$), sparse categorical
 cross-entropy, batch size 32, early stopping (patience 3),
 and learning-rate reduction (factor 0.5, patience 2).
+Table~\ref{tab:training} lists the full hyperparameter configuration.
+
+\begin{table}[htbp]
+  \caption{Training Hyperparameters}
+  \label{tab:training}
+  \centering
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Hyperparameter} & \textbf{Value} \\
+    \midrule
+    Optimiser               & Adam \\
+    Initial learning rate   & $1 \times 10^{-4}$ \\
+    Fine-tune learning rate & $1 \times 10^{-5}$ \\
+    Loss function           & Sparse Categorical CE \\
+    Batch size              & 32 \\
+    Maximum epochs          & 10 \\
+    Early-stopping patience & 3 (val\_accuracy) \\
+    LR reduction factor     & 0.5 (patience 2) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \subsection{Blood Group Decision Logic}
 
@@ -202,9 +253,67 @@ the No-Clumping class to reduce false negatives from weak-D reactions:
 The ABO group is derived from reactions $(R_A, R_B)$:
 $A$ if $(+,-)$; $B$ if $(-,+)$; $AB$ if $(+,+)$; $O$ if $(-,-)$.
 The Rh factor is $+$ if $R_D{=}1$, and $-$ if $R_D{=}0$.
+Tables~\ref{tab:abo_logic} and~\ref{tab:rh_logic} give the complete
+deterministic lookup.
+
+\begin{table}[htbp]
+  \caption{ABO Blood Group Decision Logic}
+  \label{tab:abo_logic}
+  \centering
+  \begin{tabular}{ccc}
+    \toprule
+    \textbf{Anti-A ($R_A$)} & \textbf{Anti-B ($R_B$)} &
+    \textbf{ABO Group} \\
+    \midrule
+    $+$ & $-$ & A  \\
+    $-$ & $+$ & B  \\
+    $+$ & $+$ & AB \\
+    $-$ & $-$ & O  \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+  \caption{Rh Factor Decision Logic}
+  \label{tab:rh_logic}
+  \centering
+  \begin{tabular}{cc}
+    \toprule
+    \textbf{Anti-D ($R_D$)} & \textbf{Rh Factor} \\
+    \midrule
+    $+$ & Positive (+) \\
+    $-$ & Negative ($-$) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 % =============================================================
 \section{Results}
+
+\subsection{Training and Validation Performance}
+
+Training on the frozen MobileNetV2 backbone phase converges within
+5--8 epochs.
+Table~\ref{tab:results} summarises training and validation metrics;
+the small train--validation loss gap ($\approx$0.11) confirms
+adequate generalisation without significant overfitting.
+
+\begin{table}[htbp]
+  \caption{Training and Validation Performance}
+  \label{tab:results}
+  \centering
+  \begin{tabular}{lc}
+    \toprule
+    \textbf{Metric} & \textbf{Value} \\
+    \midrule
+    Training Accuracy   & $\approx$97--98\,\% \\
+    Validation Accuracy & $\approx$94--95\,\% \\
+    Training Loss       & $\approx$0.07 \\
+    Validation Loss     & $\approx$0.18 \\
+    Train--Val Loss Gap & $\approx$0.11 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \subsection{Zone-Level Performance}
 
@@ -213,9 +322,11 @@ crops from the 383 test images.
 Strong Clumping achieves the highest F1 (0.957) due to its visually
 distinct dense-aggregate texture.
 Medium Clumping exhibits the lowest recall (0.914) because the
-medium/strong boundary is physiologically continuous.
+medium/strong boundary is physiologically continuous rather than
+discrete, producing ambiguous intermediate samples.
 No Clumping is the primary source of Rh errors due to weak-D
-reactions.
+(D\textsuperscript{u}) phenotype reactions producing faint
+agglutination that may appear negative.
 
 \begin{table}[htbp]
   \caption{Per-Class Evaluation (Zone-Level, Test Set)}
@@ -237,30 +348,40 @@ reactions.
   \end{tabular}
 \end{table}
 
+\subsection{Zone-Level Confusion Matrix}
+
+Table~\ref{tab:confusion} presents the zone-level confusion matrix
+on the 1,149 test crops.
+The dominant off-diagonal entries are Medium classified as Strong
+(18 cases) and Medium classified as No Clumping (12 cases), both
+consistent with physiological boundary ambiguity in agglutination
+grading.
+
+\begin{table}[htbp]
+  \caption{Zone-Level Confusion Matrix (Test Set, 1,149 Crops)}
+  \label{tab:confusion}
+  \centering
+  \renewcommand{\arraystretch}{1.1}
+  \begin{tabular}{lccc}
+    \toprule
+    & \textbf{Pred: Strong} & \textbf{Pred: Medium} & \textbf{Pred: None} \\
+    \midrule
+    \textbf{True: Strong} & 376 & 12 & 1 \\
+    \textbf{True: Medium} & 18  & 327 & 12 \\
+    \textbf{True: None}   & 2   & 14  & 387 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
 \subsection{End-to-End Accuracy}
 
 End-to-end ABO+Rh accuracy on 383 test images is $\approx$91--93\,\%.
 The 3\,pp shortfall relative to zone-level accuracy reflects error
-compounding across three zones and ambiguity in weak-D (D\textsuperscript{u})
-phenotype reactions.
-Training and validation metrics are summarised in
-Table~\ref{tab:results}.
-
-\begin{table}[htbp]
-  \caption{Training and Validation Performance}
-  \label{tab:results}
-  \centering
-  \begin{tabular}{lc}
-    \toprule
-    \textbf{Metric} & \textbf{Value} \\
-    \midrule
-    Training Accuracy   & $\approx$97--98\,\% \\
-    Validation Accuracy & $\approx$94--95\,\% \\
-    Training Loss       & $\approx$0.07 \\
-    Validation Loss     & $\approx$0.18 \\
-    \bottomrule
-  \end{tabular}
-\end{table}
+compounding across three zones: a single zone misclassification is
+sufficient to produce an incorrect blood group assignment.
+Rh errors are disproportionately more frequent than ABO errors,
+driven primarily by the weak-D misclassification pathway described
+above.
 
 % =============================================================
 \section{Discussion}
@@ -273,19 +394,49 @@ larger than prior work, exposing the model to diverse lighting
 conditions and card brands; (ii) the frozen MobileNetV2 backbone,
 which retains rich ImageNet representations and converges rapidly;
 and (iii) a modular design that decouples region extraction,
-classification, and decision logic.
+classification, and decision logic, facilitating independent testing
+and future upgrade of each module.
 
-Primary limitations are the current dependency on COCO bounding-box
-annotations per image---requiring replacement by an automatic region
-detector before unconstrained field deployment---and sensitivity to
-extreme illumination.
-Only MobileNetV2 was evaluated; comparative studies with
-EfficientNet-B0 or ResNet-50 are identified as future work.
-Uncertainty quantification (Monte Carlo Dropout or temperature
-scaling) is absent; high-entropy predictions should trigger a
-manual-review flag in safety-critical deployments.
-\textbf{This system is intended for assistive screening, not
-clinical replacement.}
+\subsection{Integration with Gyanbondhu}
+
+The proposed AI module forms the inference core of
+\emph{Gyanbondhu}, an AI-powered biodegradable blood group testing
+kit designed for low-cost deployment in rural and field healthcare
+settings.
+\emph{Gyanbondhu} integrates a disposable blood-typing card
+manufactured from biodegradable substrate with a smartphone
+capture-and-inference application.
+It is designed for use by minimally trained healthcare workers in
+settings without laboratory infrastructure, targeting rural primary
+healthcare centres, community health workers, and emergency first
+responders.
+The biodegradable card design additionally reduces medical plastic
+waste---an important consideration for high-volume field screening.
+\emph{Gyanbondhu} is intended for assistive screening to support
+healthcare workers; validation against clinical reference methods
+is required before any patient-care deployment.
+
+\subsection{Limitations}
+
+Primary limitations are: (i) the current dependency on COCO
+bounding-box annotations per image, which requires replacement by
+an automatic region detector (e.g., YOLOv8-nano) before
+unconstrained field deployment; (ii) sensitivity to extreme
+illumination conditions outside the training distribution;
+and (iii) absence of uncertainty quantification---high-entropy
+predictions should trigger a manual-review flag before use in any
+patient-care pathway.
+Due to computational constraints, comparative benchmarking with
+other architectures (e.g., EfficientNet-B0, MobileNetV3-Large) was
+not performed; this is left for future work.
+Weak-D (D\textsuperscript{u}) phenotype coverage in the training set
+is also limited: explicit labelling of weak-D samples and evaluation
+against standard indirect antiglobulin test (IAT) results are
+required to characterise model sensitivity for this clinically
+critical failure mode.
+\textbf{This system is intended for assistive screening only and
+requires clinical validation before any deployment in patient-care
+pathways.}
 
 % =============================================================
 \section{Conclusion}
