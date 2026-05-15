@@ -24,7 +24,7 @@ Email: sayon@sayonedu.in, sayonmitra84@gmail.com}}
 \maketitle
 
 \begin{abstract}
-Blood group identification is a prerequisite for safe transfusion, yet manual haemagglutination interpretation remains operator-dependent and difficult to standardise outside laboratory settings. This paper presents a research-stage assistive AI framework for card-based ABO and Rh(D) classification from camera images. The pipeline combines COCO annotation-guided region extraction, OpenCV preprocessing, and MobileNetV2 transfer learning to classify clumping in Anti-A, Anti-B, and Anti-D zones, followed by deterministic ABO+Rh decision logic. Experiments on 7,836 images (6,456 train, 997 validation, 383 test) show approximately 94--95\% zone-level accuracy, 91--93\% end-to-end ABO accuracy, and macro F1-score of 0.947 at zone level. The MobileNetV2 backbone supports TensorFlow Lite conversion and edge inference on smartphones, making the framework suitable for point-of-care assistive screening in resource-constrained environments while requiring clinical confirmation through certified laboratory workflows.
+Blood group identification is a prerequisite for safe transfusion, yet manual haemagglutination interpretation remains operator-dependent and difficult to standardise outside laboratory settings. This paper presents a research-stage assistive AI diagnostic framework for card-based ABO and Rh(D) classification from camera images. The pipeline combines COCO annotation-guided region extraction, OpenCV preprocessing, and MobileNetV2 transfer learning to classify clumping in Anti-A, Anti-B, and Anti-D zones, followed by deterministic ABO+Rh decision logic. Experiments on 7,836 images (6,456 train, 997 validation, 383 test) show approximately 94--95\% zone-level accuracy, 91--93\% end-to-end ABO accuracy, and macro F1-score of 0.947 at zone level. The MobileNetV2 backbone supports TensorFlow Lite conversion and edge inference on smartphones, making the framework suitable for assistive point-of-care screening in resource-constrained environments while requiring laboratory confirmation through certified transfusion workflows.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -142,6 +142,9 @@ The deployment path uses TensorFlow Lite for on-device inference. A typical Andr
   \label{fig:mobile_arch}
 \end{figure}
 
+\subsection{Mobile AI Inference Pipeline}
+At runtime, the smartphone client first performs image quality checks (focus and framing), then applies zone extraction from annotated card geometry. Each zone is resized to $224\times224$ and normalized before MobileNetV2 inference. The three zone outputs are transformed into binary reactions and mapped by deterministic ABO/Rh rules. This hybrid design keeps medical decision logic interpretable while retaining deep-model adaptability for visual pattern recognition.
+
 \section{Results}
 \subsection{Quantitative Performance}
 On the held-out test set (383 images; 1,149 zones), the model achieves approximately 94--95\% zone-level accuracy and macro F1-score of 0.947. End-to-end ABO prediction accuracy is approximately 91--93\%.
@@ -191,7 +194,7 @@ Strong clumping is the easiest class due to high-contrast aggregate textures. Me
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=0.95\columnwidth]{assets/figures/demo_inference_output.jpg}
-  \caption{Qualitative inference example from the uploaded demo output, illustrating zone-wise interpretation and final ABO/Rh decision generation.}
+  \caption{Qualitative inference example from the project supplementary demo artifact (\url{https://github.com/sayonmitra-tech/AI_Blood_Group_detection}), showing zone-wise interpretation and final ABO/Rh decision generation.}
   \label{fig:ai_output}
 \end{figure}
 
@@ -206,13 +209,27 @@ The framework demonstrates that card-level blood grouping can be approximated wi
   \item \textbf{Annotation dependency:} Current workflow depends on COCO boxes; fully annotation-free operation is pending.
 \end{itemize}
 
+\section{Hardware and Software Configuration}
+The codebase is implemented in Python with TensorFlow/Keras, OpenCV, NumPy, and Matplotlib. Model training and evaluation scripts are provided in the public project repository (\url{https://github.com/sayonmitra-tech/AI_Blood_Group_detection}), including the end-to-end pipeline (\texttt{blood\_group\_detection.py}) and evaluation workflow (\texttt{evaluation.py}). Exact experiment-runtime metadata (GPU model, TensorFlow build number, CUDA/cuDNN versions, and wall-clock training duration) are not available in the archived logs for this release.
+
 \section{Reproducibility}
-To support reproducible reporting, the following metadata are provided. Additional environment details (GPU, TensorFlow version, CUDA/cuDNN, and total training time) were not logged in archived records:
+To support reproducible reporting, dataset splits, model architecture, and inference rules are documented in this manuscript and in the repository implementation. Available experiment metadata include:
 \begin{itemize}
+  \item Dataset split: \textbf{6,456 train / 997 validation / 383 test} (total 7,836)
+  \item Input resolution: \textbf{$224\times224$}
   \item Batch size: \textbf{32}
   \item Initial learning rate: \textbf{$1\times10^{-4}$}
+  \item Max epochs: \textbf{10} with early stopping and LR reduction
 \end{itemize}
-These environment fields will be added in future revisions when complete training-runtime logs are exported from the original notebook environment.
+GPU type, TensorFlow runtime version, CUDA/cuDNN versions, and end-to-end training time were not persistently logged in the current archived run history. Future releases will include full experiment manifests and environment capture for stricter reproducibility.
+
+\section{Real-World Deployment Considerations}
+\begin{itemize}
+  \item \textbf{Human oversight:} Predictions should be reviewed by trained personnel before any transfusion-related decision.
+  \item \textbf{Acquisition protocol:} Standardized camera distance, card orientation, and illumination are needed to reduce domain shift.
+  \item \textbf{Quality control:} Low-confidence or low-quality images should trigger retesting rather than automated acceptance.
+  \item \textbf{Regulatory pathway:} Any clinical deployment requires prospective validation, risk analysis, and formal regulatory review.
+\end{itemize}
 
 \section{Ethics and Clinical Disclaimer}
 This system is intended as a \textbf{research-stage assistive diagnostic framework} and not as a replacement for certified laboratory blood typing procedures. Predictions should be interpreted by trained personnel and clinically confirmed with standard transfusion medicine protocols before any medical action.
