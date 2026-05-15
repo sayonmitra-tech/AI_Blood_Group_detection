@@ -193,7 +193,7 @@ Strong clumping is the easiest class due to high-contrast aggregate textures. Me
   \fbox{\parbox{0.92\columnwidth}{\small
   \textbf{Live inference demonstration screenshot (user-provided).}\\
   The interface shows three reagent-zone crops with per-zone outputs:\\
-  Anti-A: Negative, Anti-B: Positive, Anti-D: Negative, and final inferred group: B-.\\
+  Anti-A: Negative, Anti-B: Positive, Anti-D: Negative, and final inferred group: B Negative.\\
   Asset included in the project repository supplementary visual materials.}}
   \caption{Qualitative inference example from the uploaded demo output, illustrating zone-wise interpretation and final ABO/Rh decision generation.}
   \label{fig:ai_output}
@@ -211,9 +211,8 @@ The framework demonstrates that card-level blood grouping can be approximated wi
 \end{itemize}
 
 \section{Reproducibility}
-To support reproducible reporting, the following environment metadata is documented with currently available records:
+To support reproducible reporting, the following metadata are provided; additional environment details (GPU, TensorFlow version, CUDA/cuDNN, and total training time) were not logged in archived records:
 \begin{itemize}
-  \item The following metadata were not explicitly logged in archived training notebook records: GPU, TensorFlow version, CUDA/cuDNN version, and total training time.
   \item Batch size: \textbf{32}
   \item Initial learning rate: \textbf{$1\times10^{-4}$}
 \end{itemize}
