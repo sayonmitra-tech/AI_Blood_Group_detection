@@ -1,14 +1,5 @@
-% ============================================================
-%  IEEE_Paper.tex
-%  Automated Blood Group Detection Using Computer Vision and
-%  Transfer Learning on Mobile-Optimized Deep Neural Networks
-%
-%  IEEE TENCON 2026 Conference Paper
-%  Compile with:  pdflatex IEEE_Paper.tex  (run twice)
-% ============================================================
 \documentclass[conference]{IEEEtran}
 
-% ---- Packages -----------------------------------------------
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
 \usepackage{amsmath,amssymb}
@@ -22,134 +13,62 @@
   pdftitle={Automated Blood Group Detection Using Computer Vision and Transfer Learning},
   pdfauthor={Sayon Mitra}]{hyperref}
 
-% =============================================================
 \begin{document}
 
-% ---- Title & Author -----------------------------------------
-\title{Automated Blood Group Detection Using Computer Vision and
-       Transfer Learning on Mobile-Optimized Deep Neural Networks}
+\title{Automated Blood Group Detection Using Computer Vision and Transfer Learning on Mobile-Optimized Deep Neural Networks}
 
 \author{\IEEEauthorblockN{Sayon Mitra}
 \IEEEauthorblockA{Independent Researcher, AI and Biomedical Engineering\\
-Email: sayon@sayonedu.in}}
+Email: sayon@sayonedu.in, sayonmitra84@gmail.com}}
 
 \maketitle
 
-% =============================================================
 \begin{abstract}
-Accurate and rapid blood group identification is critical in transfusion
-medicine, emergency care, and surgical procedures.
-Conventional haemagglutination-based methods are time-consuming,
-operator-dependent, and error-prone.
-This paper presents an automated, AI-driven blood group detection system
-combining COCO bounding-box region extraction and MobileNetV2 transfer
-learning to identify ABO and Rh(D) blood groups from photographs of
-standard blood-typing cards.
-The pipeline extracts three reagent zones (Anti-A, Anti-B, Anti-D),
-classifies clumping intensity in each zone, and applies deterministic
-ABO\,+\,Rh logic to output the final blood group.
-Trained on 6,456 images and evaluated on 383 test images, the system
-achieves $\approx$94--95\,\% zone-level accuracy and a macro-average
-F1-score of 0.947.
-The lightweight MobileNetV2 backbone (3.4\,M parameters) enables
-deployment on resource-constrained mobile devices, making the system
-suitable for point-of-care use in low-resource healthcare settings.
-This work also forms the AI core of \emph{Gyanbondhu}, an
-AI-powered biodegradable blood group testing kit designed for
-field deployment.
+Blood group identification is a prerequisite for safe transfusion, yet manual haemagglutination interpretation remains operator-dependent and difficult to standardise outside laboratory settings. This paper presents a research-stage assistive AI framework for card-based ABO and Rh(D) classification from camera images. The pipeline combines COCO annotation-guided region extraction, OpenCV preprocessing, and MobileNetV2 transfer learning to classify clumping in Anti-A, Anti-B, and Anti-D zones, followed by deterministic ABO+Rh decision logic. Experiments on 7,836 images (6,456 train, 997 validation, 383 test) show approximately 94--95\% zone-level accuracy, 91--93\% end-to-end ABO accuracy, and macro F1-score of 0.947 at zone level. The MobileNetV2 backbone supports TensorFlow Lite conversion and edge inference on smartphones, making the framework suitable for point-of-care assistive screening in resource-constrained environments while requiring clinical confirmation through certified laboratory workflows.
 \end{abstract}
 
 \begin{IEEEkeywords}
-blood group detection, transfer learning, MobileNetV2,
-COCO annotation, computer vision, point-of-care diagnostics,
-AI in healthcare
+biomedical AI, blood group detection, MobileNetV2, COCO annotation, computer vision, TensorFlow Lite, point-of-care diagnostics, edge AI
 \end{IEEEkeywords}
 
-% =============================================================
 \section{Introduction}
+ABO and Rh(D) compatibility is fundamental to transfusion safety. Incorrect typing can lead to severe haemolytic reactions and preventable adverse events~\cite{lippi2011}. In routine practice, blood typing is performed using haemagglutination assays interpreted by trained personnel under controlled conditions. Although reliable in laboratories, manual interpretation can be affected by reaction ambiguity, operator variability, and inconsistent lighting in field settings.
 
-Blood transfusion incompatibility remains a leading cause of
-transfusion-related fatalities worldwide.
-The ABO and Rh(D) systems are the most clinically significant
-antigen systems; mismatching can trigger life-threatening haemolytic
-reactions~\cite{lippi2011}.
-Manual typing by glass-slide or tube haemagglutination requires
-skilled personnel, controlled laboratory conditions, and consistent
-lighting---resources unavailable in rural clinics, military field
-hospitals, or emergency rooms.
+Recent advances in mobile imaging and efficient deep learning models motivate AI-assisted screening workflows for low-resource settings. However, many prior methods evaluate only pre-cropped reagent regions, limiting practical deployment on full card images. This work addresses that gap with a full pipeline that starts from a complete blood-typing card photograph and outputs a structured ABO+Rh prediction.
 
-The proliferation of high-resolution smartphone cameras and lightweight
-deep learning frameworks (TensorFlow Lite, ONNX) creates an opportunity
-to democratise blood group typing at the point of care.
-This work presents a modular pipeline that classifies a blood group
-from a single photograph of a standard disposable typing card under
-ambient light, substantially reducing the diagnostic bottleneck in
-resource-limited settings.
-
-This work also supports \emph{Gyanbondhu}---an AI-powered biodegradable
-blood group testing kit---by providing the deep learning inference engine
-for autonomous on-device blood group determination.
-
-The key contributions of this paper are:
+\textbf{Contributions:}
 \begin{enumerate}
-  \item An end-to-end pipeline: COCO region extraction
-        $\rightarrow$ MobileNetV2 clumping classification
-        $\rightarrow$ deterministic ABO\,+\,Rh logic.
-  \item A comprehensive annotated dataset: 6,456 training,
-        997 validation, and 383 test images, yielding
-        94--95\,\% zone-level accuracy (macro-F1: 0.947).
-  \item A mobile-deployable model (14\,MB) with a clear
-        TensorFlow Lite conversion roadmap.
+  \item A complete card-image pipeline: COCO zone localization $\rightarrow$ clumping classification $\rightarrow$ deterministic ABO+Rh mapping.
+  \item A dataset-driven evaluation on 7,836 images (6,456/997/383 train/validation/test) with zone-level macro F1-score of 0.947.
+  \item A mobile-oriented implementation based on MobileNetV2 and TensorFlow/TensorFlow Lite deployment pathways.
 \end{enumerate}
 
-% =============================================================
 \section{Related Work}
+Conventional haemagglutination remains the clinical reference method since the ABO discovery era~\cite{landsteiner1901}, but manual visual grading introduces inter-observer variability~\cite{harmening2019}. Early computer-vision studies relied on handcrafted pipelines. Saif \emph{et al.} used HSV thresholding with blob analysis (88\% accuracy)~\cite{saif2016}, while Khan \emph{et al.} combined GLCM texture descriptors with SVM (91.3\%)~\cite{khan2018}.
 
-Haemagglutination-based typing has been the clinical gold standard
-since Landsteiner's discovery of the ABO system~\cite{landsteiner1901},
-but introduces inter-observer variability of 2--5\,\%~\cite{harmening2019}.
-Saif~\emph{et al.}~\cite{saif2016} achieved 88\,\% accuracy with HSV
-thresholding and blob detection; Khan~\emph{et al.}~\cite{khan2018}
-reported 91.3\,\% using an SVM on GLCM texture features.
-CNN-based approaches raised the bar: ResNet-50~\cite{yildiz2020}
-reached 93.7\,\% and VGG-16~\cite{ahmed2021} reached 94.2\,\%, but
-both required pre-cropped single-reagent images and lab-controlled
-conditions.
-Table~\ref{tab:comparison} shows that the proposed system is the
-first to couple a complete card-level detection pipeline with a
-mobile-friendly backbone trained on a dataset nearly five times
-larger than prior work.
+CNN-based models improved robustness: ResNet-50 and VGG-16 reported 93.7\% and 94.2\%, respectively~\cite{yildiz2020,ahmed2021}. Nevertheless, these approaches generally assumed cropped reagent inputs and controlled acquisition. The proposed framework differs by coupling full-card region handling with a mobile-optimized backbone.
 
 \begin{table}[htbp]
-  \caption{Comparison with Existing Blood Group Detection Systems}
+  \caption{Comparison with Prior Blood Group Detection Approaches}
   \label{tab:comparison}
   \centering
   \renewcommand{\arraystretch}{1.1}
-  \begin{tabular}{lp{1.5cm}cc}
+  \begin{tabular}{lp{1.6cm}cc}
     \toprule
-    \textbf{System} & \textbf{Architecture} & \textbf{Acc.} & \textbf{Full Pipeline} \\
+    \textbf{Method} & \textbf{Model} & \textbf{Accuracy} & \textbf{Card-Level Pipeline} \\
     \midrule
-    Saif~\emph{et al.}~\cite{saif2016}    & HSV+Blob   & 88.0\,\% & No \\
-    Khan~\emph{et al.}~\cite{khan2018}    & SVM+GLCM   & 91.3\,\% & No \\
-    Yildiz~\emph{et al.}~\cite{yildiz2020}& ResNet-50  & 93.7\,\% & No \\
-    Ahmed~\emph{et al.}~\cite{ahmed2021}  & VGG-16     & 94.2\,\% & No \\
-    \textbf{Proposed}                     & \textbf{MNv2} & \textbf{94--95\,\%} & \textbf{Yes} \\
+    Saif \emph{et al.}~\cite{saif2016} & HSV+Blob & 88.0\% & No \\
+    Khan \emph{et al.}~\cite{khan2018} & SVM+GLCM & 91.3\% & No \\
+    Yildiz \emph{et al.}~\cite{yildiz2020} & ResNet-50 & 93.7\% & No \\
+    Ahmed \emph{et al.}~\cite{ahmed2021} & VGG-16 & 94.2\% & No \\
+    \textbf{Proposed} & \textbf{MobileNetV2} & \textbf{94--95\% (zone)} & \textbf{Yes} \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-% =============================================================
 \section{Methodology}
-
-\subsection{Dataset and Preprocessing}
-
-Images of commercial disposable blood-typing cards were collected
-and annotated via Roboflow in COCO JSON format~\cite{lin2014coco}.
-Each full-card image contains three reagent spots: Anti-A, Anti-B,
-and Anti-D, representing the ABO and Rh(D) antigen systems.
-The dataset covers all four ABO groups (A, B, AB, O) with Rh factor
-inferred from the D-zone reaction.
-Dataset statistics are given in Table~\ref{tab:dataset}.
+\subsection{Dataset and COCO Annotation Pipeline}
+The dataset contains 7,836 blood-card images: 6,456 for training, 997 for validation, and 383 for testing. Each image is annotated in COCO JSON format with three reagent bounding boxes: Anti-A, Anti-B, and Anti-D.
 
 \begin{table}[htbp]
   \caption{Dataset Statistics}
@@ -159,310 +78,151 @@ Dataset statistics are given in Table~\ref{tab:dataset}.
     \toprule
     \textbf{Split} & \textbf{Images} & \textbf{Zone Crops (3$\times$)} \\
     \midrule
-    Train      & 6,456 & 19,368 \\
-    Validation & 997   & 2,991  \\
-    Test       & 383   & 1,149  \\
+    Train & 6,456 & 19,368 \\
+    Validation & 997 & 2,991 \\
+    Test & 383 & 1,149 \\
     \midrule
     \textbf{Total} & \textbf{7,836} & \textbf{23,508} \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-Training images are augmented with random horizontal/vertical flip,
-brightness ($\pm$0.15), contrast ($\pm$0.10), rotation
-($\pm$15\textdegree), and CLAHE normalisation to improve
-generalisation across diverse lighting conditions and card brands.
-
-\subsection{Region Extraction}
-
-Given a full blood-card image, the COCO annotation file is parsed to
-retrieve three bounding boxes for the Anti-A, Anti-B, and Anti-D
-zones.
-Each box is cropped using OpenCV and saved into a class-labelled
-directory tree compatible with TensorFlow's
-\texttt{image\_dataset\_from\_directory}.
-Three output classes are defined per crop:
-\begin{itemize}
-  \item \textbf{Class~0:} Strong Clumping---dense, clearly positive
-        agglutination.
-  \item \textbf{Class~1:} Medium Clumping---moderate positive
-        agglutination.
-  \item \textbf{Class~2:} No Clumping---negative reaction, no
-        agglutination visible.
-\end{itemize}
-Each crop is then resized to $224\times224$ pixels, converted from
-BGR to RGB, and normalised to $[0.0, 1.0]$ before being fed to the
-classifier.
-Validation and test sets are preprocessed identically but without
-augmentation to ensure unbiased evaluation.
-
-\subsection{Model Architecture}
-
-Transfer learning is applied using MobileNetV2~\cite{sandler2018}
-pretrained on ImageNet-1K.
-The 154-layer backbone (2.3\,M parameters) is frozen during the
-initial training phase.
-Fig.~\ref{fig:arch} shows the classification head appended to the
-backbone.
+\subsection{Region Extraction and OpenCV Preprocessing}
+For each image, COCO annotations are parsed to retrieve three reagent regions. OpenCV is used to crop each region and prepare classifier inputs. Processing steps include resize to $224\times224$, BGR-to-RGB conversion, and normalization to $[0,1]$. Training data additionally uses augmentation (flip, brightness/contrast perturbation, rotation, CLAHE) to reduce sensitivity to capture conditions.
 
 \begin{figure}[htbp]
   \centering
-  \fbox{%
-    \parbox{0.88\columnwidth}{%
-      \small\centering
-      \textbf{Input:} $224 \times 224 \times 3$\\[3pt]
-      $\downarrow$\\[2pt]
-      MobileNetV2 backbone (frozen, 2.3\,M params)\\[3pt]
-      $\downarrow$\\[2pt]
-      GlobalAveragePooling2D $\rightarrow$ 1280-d\\[3pt]
-      $\downarrow$\\[2pt]
-      Dropout(0.3) $\rightarrow$ Dense(128, ReLU)\\[3pt]
-      $\downarrow$\\[2pt]
-      Dense(3, Softmax)\\[3pt]
-      $\downarrow$\\[2pt]
-      \textbf{Output:} Strong / Medium / No Clumping
-    }%
-  }
-  \caption{MobileNetV2-based classification head.
-           Trainable parameters: $\approx$166\,K (head only).}
-  \label{fig:arch}
+  \fbox{\parbox{0.9\columnwidth}{\centering\small
+  Full card image $\rightarrow$ COCO boxes (A,B,D) $\rightarrow$ zone crops $\rightarrow$ preprocessing $\rightarrow$ clumping classifier $\rightarrow$ ABO+Rh logic}}
+  \caption{End-to-end computational workflow from card image to final blood group output.}
+  \label{fig:workflow}
 \end{figure}
 
-An optional fine-tuning phase unfreezes the last 30 backbone layers
-(excluding Batch-Normalisation) with learning rate $10^{-5}$ for
-domain adaptation.
-
-\subsection{Training Configuration}
-
-The model is compiled with the Adam optimiser, sparse categorical
-cross-entropy loss, and a maximum of 10 epochs.
-Table~\ref{tab:training} lists the full hyperparameter configuration.
-Early stopping (patience 3) and learning-rate reduction on plateau
-(factor 0.5, patience 2) prevent overfitting.
+\subsection{MobileNetV2 Transfer Learning and TensorFlow Workflow}
+A MobileNetV2 backbone pretrained on ImageNet~\cite{sandler2018} is used as feature extractor, followed by GlobalAveragePooling2D, Dropout(0.3), Dense(128, ReLU), and Dense(3, Softmax). Output classes are \emph{Strong Clumping}, \emph{Medium Clumping}, and \emph{No Clumping}. Training uses Adam optimizer, sparse categorical cross-entropy, and early stopping.
 
 \begin{table}[htbp]
-  \caption{Training Hyperparameters}
+  \caption{Training Configuration}
   \label{tab:training}
   \centering
   \begin{tabular}{ll}
     \toprule
-    \textbf{Hyperparameter} & \textbf{Value} \\
+    \textbf{Item} & \textbf{Value} \\
     \midrule
-    Optimiser               & Adam \\
-    Initial learning rate   & $1 \times 10^{-4}$ \\
-    Loss function           & Sparse Categorical Cross-Entropy \\
-    Batch size              & 32 \\
-    Maximum epochs          & 10 \\
-    Early-stopping patience & 3 (val\_accuracy) \\
-    LR reduction factor     & 0.5 (patience 2, min $10^{-6}$) \\
+    Optimizer & Adam \\
+    Initial learning rate & $1\times10^{-4}$ \\
+    Batch size & 32 \\
+    Max epochs & 10 \\
+    Early stopping & Patience 3 (validation accuracy) \\
+    LR reduction & Factor 0.5, patience 2, min LR $10^{-6}$ \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-\subsection{Blood Group Decision Logic}
-
-Zone predictions are mapped to binary reactions via:
+\subsection{Clumping Classification and ABO+Rh Determination Logic}
+Zone predictions are mapped to binary reactions using:
 \begin{equation}
-  R =
-  \begin{cases}
-    1 & \text{class} \in \{0,1\} \;\text{(clumping detected)} \\
-    1 & \text{class} = 2 \;\text{and}\; P(\text{No Clump}) < 0.90 \\
-    0 & \text{otherwise}
-  \end{cases}
-  \label{eq:reaction}
+R=
+\begin{cases}
+1, & \text{if class}\in\{\text{Strong, Medium}\} \\
+1, & \text{if class=No Clumping and } P(\text{No Clumping})<0.90 \\
+0, & \text{otherwise}
+\end{cases}
 \end{equation}
+where $R\in\{0,1\}$ denotes negative/positive reaction. The final blood group is then inferred from $(R_A,R_B,R_D)$ using standard ABO and Rh decision tables.
 
-The final ABO group and Rh factor are derived from the three
-zone reactions $(R_A, R_B, R_D)$ using
-Tables~\ref{tab:abo_logic} and~\ref{tab:rh_logic}.
+\section{Deployment Architecture (Smartphone Edge AI)}
+The deployment path uses TensorFlow Lite for on-device inference. A typical Android stack includes CameraX for image capture, OpenCV preprocessing for card/zone conditioning, and TFLite interpreter for low-latency clumping prediction. The app-level logic computes ABO+Rh labels and displays per-zone confidence for operator verification.
 
-\begin{table}[htbp]
-  \caption{ABO Blood Group Determination Logic}
-  \label{tab:abo_logic}
+\begin{figure}[htbp]
   \centering
-  \begin{tabular}{ccc}
-    \toprule
-    \textbf{Anti-A ($R_A$)} & \textbf{Anti-B ($R_B$)} &
-    \textbf{ABO Group} \\
-    \midrule
-    $+$ & $-$ & A  \\
-    $-$ & $+$ & B  \\
-    $+$ & $+$ & AB \\
-    $-$ & $-$ & O  \\
-    \bottomrule
-  \end{tabular}
-\end{table}
+  \fbox{\parbox{0.92\columnwidth}{\small\centering
+  Smartphone camera (CameraX) $\rightarrow$ card frame acquisition $\rightarrow$ zone extraction $\rightarrow$ TFLite MobileNetV2 inference $\rightarrow$ ABO+Rh decision and UI feedback}}
+  \caption{Proposed mobile deployment architecture for edge inference.}
+  \label{fig:mobile_arch}
+\end{figure}
+
+\section{Results}
+\subsection{Quantitative Performance}
+On the held-out test set (383 images; 1,149 zones), the model achieves approximately 94--95\% zone-level accuracy and macro F1-score of 0.947. End-to-end ABO prediction accuracy is approximately 91--93\%.
 
 \begin{table}[htbp]
-  \caption{Rh Factor Determination Logic}
-  \label{tab:rh_logic}
-  \centering
-  \begin{tabular}{cc}
-    \toprule
-    \textbf{Anti-D ($R_D$)} & \textbf{Rh Factor} \\
-    \midrule
-    $+$ & Positive (+) \\
-    $-$ & Negative ($-$) \\
-    \bottomrule
-  \end{tabular}
-\end{table}
-
-% =============================================================
-\section{Results and Evaluation}
-
-\subsection{Training and Validation Performance}
-
-Training on the frozen MobileNetV2 backbone converges within
-5--8 epochs. Table~\ref{tab:results} summarises the observed
-metrics; the small train--validation loss gap ($\approx$0.11)
-confirms good generalisation.
-
-\begin{table}[htbp]
-  \caption{Training and Validation Performance}
-  \label{tab:results}
-  \centering
-  \begin{tabular}{lc}
-    \toprule
-    \textbf{Metric} & \textbf{Value} \\
-    \midrule
-    Training Accuracy   & $\approx$97--98\,\% \\
-    Validation Accuracy & $\approx$94--95\,\% \\
-    Training Loss       & $\approx$0.07 \\
-    Validation Loss     & $\approx$0.18 \\
-    \bottomrule
-  \end{tabular}
-\end{table}
-
-\subsection{Per-Class Metrics and Confusion Matrix}
-
-Table~\ref{tab:perclass} gives per-class evaluation on the 383 test
-images (1,149 zone crops); Table~\ref{tab:confusion} shows the
-zone-level confusion matrix.
-Strong Clumping achieves the highest F1 (0.957) due to its visually
-distinct dense-aggregate texture.
-Medium Clumping exhibits the lowest recall (0.914) because the
-medium/strong boundary is physiologically continuous.
-No Clumping is the primary source of Rh errors due to weak-D
-reactions.
-
-\begin{table}[htbp]
-  \caption{Per-Class Evaluation (Zone-Level, Test Set)}
+  \caption{Per-Class Zone-Level Metrics (Test Set)}
   \label{tab:perclass}
   \centering
-  \renewcommand{\arraystretch}{1.1}
   \begin{tabular}{lcccc}
     \toprule
-    \textbf{Class} & \textbf{Prec.} & \textbf{Rec.} &
-    \textbf{F1} & \textbf{Support} \\
+    \textbf{Class} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} & \textbf{Support} \\
     \midrule
     Strong Clumping & 0.948 & 0.966 & 0.957 & 389 \\
     Medium Clumping & 0.925 & 0.914 & 0.919 & 357 \\
-    No Clumping     & 0.968 & 0.961 & 0.964 & 403 \\
+    No Clumping & 0.968 & 0.961 & 0.964 & 403 \\
     \midrule
-    \textbf{Macro Avg.} & \textbf{0.947} & \textbf{0.947} &
-    \textbf{0.947} & \textbf{1,149} \\
+    \textbf{Macro Avg.} & \textbf{0.947} & \textbf{0.947} & \textbf{0.947} & \textbf{1,149} \\
     \bottomrule
   \end{tabular}
 \end{table}
 
 \begin{table}[htbp]
-  \caption{Zone-Level Confusion Matrix (Test Set, 1,149 Crops)}
+  \caption{Zone-Level Confusion Matrix (Test Set)}
   \label{tab:confusion}
   \centering
-  \renewcommand{\arraystretch}{1.1}
   \begin{tabular}{lccc}
     \toprule
     & \textbf{Pred: Strong} & \textbf{Pred: Medium} & \textbf{Pred: None} \\
     \midrule
     \textbf{True: Strong} & 376 & 12 & 1 \\
-    \textbf{True: Medium} & 18  & 327 & 12 \\
-    \textbf{True: None}   & 2   & 14  & 387 \\
+    \textbf{True: Medium} & 18 & 327 & 12 \\
+    \textbf{True: None} & 2 & 14 & 387 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-\subsection{End-to-End Blood Group Accuracy}
+\subsection{Interpretation}
+Strong clumping is the easiest class due to high-contrast aggregate textures. Medium clumping is more difficult because intermediate agglutination patterns overlap with both strong and weak reactions, especially under non-uniform illumination. Weak-D phenotype patterns can mimic low-intensity negatives and remain a key error source in Rh determination.
 
-End-to-end ABO blood group accuracy on the 383 test images is
-$\approx$91--93\,\%.
-The shortfall relative to zone-level accuracy arises primarily from
-weak-D (D\textsuperscript{u}) phenotype reactions, which produce
-faint agglutination that the model may classify as No Clumping.
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.95\columnwidth]{assets/figures/sample_blood_card.jpg}
+  \caption{Example blood-typing card image from the dataset used for region extraction and zone-level inference.}
+  \label{fig:sample_card}
+\end{figure}
 
-% =============================================================
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.95\columnwidth]{assets/figures/demo_inference_output.jpg}
+  \caption{Qualitative inference example from the uploaded demo output, illustrating zone-wise interpretation and final ABO/Rh decision generation.}
+  \label{fig:ai_output}
+\end{figure}
+
 \section{Discussion}
+The framework demonstrates that card-level blood grouping can be approximated with lightweight vision models suitable for mobile hardware. Performance indicates strong feasibility for assistive point-of-care workflows, but not for autonomous clinical decision-making. Environmental effects (lighting, glare, camera quality) and label quality from annotation pipelines directly influence robustness.
 
-The proposed system outperforms all prior single-reagent approaches
-(Table~\ref{tab:comparison}) while being the only method to handle
-full-card images without manual region cropping.
-The 3\,pp gap between zone-level (94--95\,\%) and end-to-end ABO
-accuracy (91--93\,\%) reflects the compounding effect of errors
-across three zones and the inherent ambiguity of weak-D reactions.
+\section{Limitations}
+\begin{itemize}
+  \item \textbf{Weak-D ambiguity:} Subtle D-zone reactions remain difficult to separate from negatives.
+  \item \textbf{Lighting variation:} Extreme illumination or color cast can alter texture/contrast cues.
+  \item \textbf{Dataset diversity:} Additional populations, card designs, and acquisition devices are needed.
+  \item \textbf{Annotation dependency:} Current workflow depends on COCO boxes; fully annotation-free operation is pending.
+\end{itemize}
 
-Key strengths include: (i) a training corpus nearly five times larger
-than prior work, exposing the model to diverse lighting and card
-brands; (ii) the frozen MobileNetV2 backbone, which retains rich
-ImageNet representations and converges rapidly; and (iii) the
-modular codebase that decouples region extraction, classification,
-and decision logic for easy maintenance.
+\section{Reproducibility}
+To support reproducible reporting, the following metadata are provided. Additional environment details (GPU, TensorFlow version, CUDA/cuDNN, and total training time) were not logged in archived records:
+\begin{itemize}
+  \item Batch size: \textbf{32}
+  \item Initial learning rate: \textbf{$1\times10^{-4}$}
+\end{itemize}
+These environment fields will be added in future revisions when complete training-runtime logs are exported from the original notebook environment.
 
-Primary limitations are the current dependency on COCO bounding-box
-annotations per image---requiring replacement by an automatic region
-detector before unconstrained field deployment---and sensitivity to
-extreme illumination conditions.
-Uncertainty quantification (Monte Carlo Dropout or temperature
-scaling) is also absent; high-entropy predictions should trigger a
-manual-review flag in safety-critical deployments.
+\section{Ethics and Clinical Disclaimer}
+This system is intended as a \textbf{research-stage assistive diagnostic framework} and not as a replacement for certified laboratory blood typing procedures. Predictions should be interpreted by trained personnel and clinically confirmed with standard transfusion medicine protocols before any medical action.
 
-% =============================================================
 \section{Future Work}
+Planned extensions include: (i) annotation-free zone detection with YOLOv8-nano, (ii) TensorFlow Lite INT8 optimization for lower latency and footprint, (iii) EfficientNet-based backbone benchmarking, (iv) uncertainty-aware output calibration, (v) federated learning for privacy-preserving multi-site training, and (vi) prospective clinical validation pipelines with protocolized human oversight.
 
-Several directions will further improve the system.
-\textbf{Annotation-free detection:} replacing the COCO annotation
-dependency with a lightweight on-device object detector
-(YOLOv8-nano or MobileNet-SSD) will allow the system to operate on
-any blood-card photograph without pre-labelling.
-\textbf{Mobile deployment:} INT8 post-training quantisation converts
-the model to TensorFlow Lite ($\approx$4\,MB), achieving inference
-below 50\,ms on mid-range Android devices via CameraX.
-\textbf{Architecture upgrade:} EfficientNet-B0 (5.3\,M parameters)
-is the recommended next backbone, consistently outperforming
-MobileNetV2 on small medical datasets with minimal additional cost.
-\textbf{Uncertainty quantification:} Monte Carlo Dropout or
-temperature scaling will flag high-entropy predictions for manual
-review in safety-critical clinical settings.
-\textbf{Clinical integration:} FHIR/HL7 connectivity and federated
-learning across multiple hospitals will enable privacy-preserving
-multi-site deployment.
-
-% =============================================================
 \section{Conclusion}
+This work presents a complete AI-assisted blood group classification pipeline using COCO-guided zone extraction and MobileNetV2 transfer learning. On 7,836 images, it achieves approximately 94--95\% zone-level accuracy, 91--93\% end-to-end ABO accuracy, and macro F1-score of 0.947. The mobile-oriented design supports edge deployment, while current limitations and ethical constraints position the method as assistive research technology requiring laboratory confirmation.
 
-This paper presented a complete, annotation-driven blood group
-detection pipeline combining COCO region extraction and MobileNetV2
-transfer learning.
-The system achieves $\approx$94--95\,\% zone-level accuracy and
-$\approx$91--93\,\% end-to-end ABO accuracy (macro-F1: 0.947) on a
-7,836-image dataset, outperforming prior single-reagent systems with
-a fully automated card-level pipeline.
-The 14\,MB MobileNetV2 backbone supports deployment on mid-range
-smartphones via TensorFlow Lite, making the system viable for
-point-of-care use in low-resource settings.
-This AI module forms the core of \emph{Gyanbondhu}, an AI-powered
-biodegradable blood group testing kit that enables autonomous,
-field-deployable blood typing without laboratory infrastructure.
-
-Future work will replace the COCO annotation dependency with an
-on-device object detector (YOLOv8-nano), convert the model to INT8
-TFLite ($\approx$4\,MB, $<$50\,ms inference), and explore
-EfficientNet-B0 fine-tuning to push validation accuracy above 97\,\%.
-Uncertainty quantification via Monte Carlo Dropout will flag
-low-confidence predictions for manual review in safety-critical
-clinical settings.
-
-% =============================================================
-% References
-% =============================================================
 \begin{thebibliography}{10}
 
 \bibitem{lippi2011}
@@ -515,12 +275,6 @@ T.-Y.~Lin \emph{et~al.},
 ``Microsoft COCO: Common Objects in Context,''
 in \emph{Proc.\ ECCV 2014}, Lecture Notes Comput.\ Sci.,
 vol.~8693. Springer, 2014, pp.~740--755.
-
-\bibitem{howard2017mobilenets}
-A.~G.~Howard \emph{et~al.},
-``MobileNets: Efficient Convolutional Neural Networks for Mobile
-Vision Applications,''
-\emph{arXiv preprint arXiv:1704.04861}, 2017.
 
 \end{thebibliography}
 
