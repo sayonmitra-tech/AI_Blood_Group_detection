@@ -143,7 +143,7 @@ The deployment path uses TensorFlow Lite for on-device inference. A typical Andr
 \end{figure}
 
 \subsection{Mobile AI Inference Pipeline}
-At runtime, the smartphone client first performs image quality checks (focus and framing), then applies zone extraction from annotated card geometry. If quality checks fail, the interface requests image recapture and suppresses automated blood-group output until a usable frame is obtained. Each zone is resized to $224\times224$ and normalized before MobileNetV2 inference. The three zone outputs are transformed into binary reactions and mapped by deterministic ABO/Rh rules. This hybrid design keeps medical decision logic interpretable while retaining deep-model adaptability for visual pattern recognition.
+At runtime, the smartphone client first performs image quality checks (focus and framing), then applies zone extraction from annotated card geometry. In the current release these checks are heuristic UI-level gates, and their exact numeric thresholds were not version-logged in archived notebooks. If quality checks fail, the interface requests image recapture and suppresses automated blood-group output until a usable frame is obtained. Each zone is resized to $224\times224$ and normalized before MobileNetV2 inference. The three zone outputs are transformed into binary reactions and mapped by deterministic ABO/Rh rules. This hybrid design keeps medical decision logic interpretable while retaining deep-model adaptability for visual pattern recognition.
 
 \section{Results}
 \subsection{Quantitative Performance}
@@ -223,6 +223,7 @@ To support reproducible reporting, dataset splits, model architecture, and infer
   \item Max epochs: \textbf{10} with early stopping and LR reduction
 \end{itemize}
 GPU type, TensorFlow runtime version, CUDA/cuDNN versions, and end-to-end training time were not persistently logged in the current archived run history. Future releases will include full experiment manifests and environment capture for stricter reproducibility.
+Package-level version pins (e.g., TensorFlow/OpenCV/NumPy) are also unavailable from the archived runtime export and will be included in future reproducibility manifests.
 
 \section{Real-World Deployment Considerations}
 \begin{itemize}
