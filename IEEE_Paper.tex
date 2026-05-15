@@ -143,7 +143,7 @@ The deployment path uses TensorFlow Lite for on-device inference. A typical Andr
 \end{figure}
 
 \subsection{Mobile AI Inference Pipeline}
-At runtime, the smartphone client first performs image quality checks (focus and framing), then applies zone extraction from annotated card geometry. In the current release these checks are heuristic UI-level gates, and their exact numeric thresholds were not version-logged in archived notebooks. If quality checks fail, the interface requests image recapture and suppresses automated blood-group output until a usable frame is obtained. Each zone is resized to $224\times224$ and normalized before MobileNetV2 inference. The three zone outputs are transformed into binary reactions and mapped by deterministic ABO/Rh rules. This hybrid design keeps medical decision logic interpretable while retaining deep-model adaptability for visual pattern recognition.
+At runtime, the smartphone client first performs image quality checks (focus and framing), then applies zone extraction from annotated card geometry. In the current release, these checks are heuristic UI-level gates. Their exact numeric thresholds were not version-logged in archived notebooks. If quality checks fail, the interface requests image recapture and suppresses automated blood-group output until a usable frame is obtained. Each zone is resized to $224\times224$ and normalized before MobileNetV2 inference. The three zone outputs are transformed into binary reactions and mapped by deterministic ABO/Rh rules. This hybrid design keeps medical decision logic interpretable while retaining deep-model adaptability for visual pattern recognition.
 
 \section{Results}
 \subsection{Quantitative Performance}
@@ -195,7 +195,7 @@ Supplementary qualitative outputs used in this analysis are provided in the publ
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=0.95\columnwidth]{assets/figures/demo_inference_output.jpg}
-  \caption{Qualitative inference example from the project supplementary demo artifact, showing zone-wise interpretation and final ABO/Rh decision generation.}
+  \caption{Qualitative inference example from supplementary demonstration materials, showing zone-wise interpretation and final ABO/Rh decision generation.}
   \label{fig:ai_output}
 \end{figure}
 
